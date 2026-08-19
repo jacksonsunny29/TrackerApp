@@ -1,0 +1,16 @@
+{
+  "name": "Field Notes",
+  "short_name": "FieldNotes",
+  "description": "Track study, explore, and thinking time toward your PhD — with a daily thinking-goal habit tracker.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#141922",
+  "theme_color": "#141922",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
