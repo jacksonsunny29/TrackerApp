@@ -404,17 +404,6 @@ function render() {
         </div>
       </div>
 
-      <div class="card">
-        <h2>Today's dial</h2>
-        <div class="dial-wrap">
-          ${renderDial(todaysTotals)}
-          <div class="dial-legend">
-            ${Object.keys(CATS).map((cat) => `
-              <div class="legend-row"><span class="cat-dot" style="background:${CATS[cat].hex}"></span>${CATS[cat].label}<span class="val">${fmtHrs(todaysTotals[cat])}</span></div>`).join('')}
-          </div>
-        </div>
-      </div>
-
       ${renderTodoList('daily', 'todayTab', true, "Today's tasks")}
     </div>
 
