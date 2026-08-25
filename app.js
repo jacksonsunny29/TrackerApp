@@ -80,7 +80,8 @@ const CATS = {
   study:   { label: "Study",   hex: "#e0a452" },
   explore: { label: "Explore", hex: "#5fb3a3" },
   think:   { label: "Think",   hex: "#a594d1" },
-  build:   { label: "Build",   hex: "#c1585f" }
+  build:   { label: "Build",   hex: "#c1585f" },
+  write:   { label: "Write",   hex: "#5b8ec9" }
 };
 const CAT_KEYS = Object.keys(CATS);
 
@@ -237,14 +238,14 @@ function escapeHtml(str) {
   return d.innerHTML;
 }
 
-function renderTodoList(listType) {
+function renderTodoList(listType, idPrefix, visible, heading) {
   const today = todayStr();
   const list = todos.filter((t) => listType === 'daily' ? t.linkedDate === today : !t.linkedDate);
   const groups = groupTodosByCategory(list);
   const order = [...CAT_KEYS, 'general'];
-  const inputId = listType === 'daily' ? 'dailyTodoInput' : 'longTodoInput';
-  const selectId = listType === 'daily' ? 'dailyCategorySelect' : 'longCategorySelect';
-  const addBtnId = listType === 'daily' ? 'dailyAddBtn' : 'longAddBtn';
+  const inputId = `${idPrefix}TodoInput`;
+  const selectId = `${idPrefix}CategorySelect`;
+  const addBtnId = `${idPrefix}AddBtn`;
   const hint = listType === 'daily'
     ? "Today's list — tasks you add here belong to today only."
     : "Backlog — tasks here stick around until you finish or delete them.";
@@ -267,8 +268,14 @@ function renderTodoList(listType) {
       </div>`;
   }).join('');
 
+  const doneCount = list.filter((t) => t.isDone).length;
+  const headingHtml = heading
+    ? `<h2>${heading} ${list.length ? `<span style="color:var(--muted); font-weight:400; font-size:12px;">(${doneCount}/${list.length} done)</span>` : ''}</h2>`
+    : '';
+
   return `
-    <div class="card" data-todopanel="${listType}" style="${activeTodoTab === listType ? '' : 'display:none;'}">
+    <div class="card" data-todopanel="${idPrefix}" style="${visible ? '' : 'display:none;'}">
+      ${headingHtml}
       <p class="todo-hint">${hint}</p>
       <div class="todo-input-row">
         <input type="text" id="${inputId}" placeholder="What's next?">
@@ -281,6 +288,17 @@ function renderTodoList(listType) {
       ${list.length === 0 ? '<div class="todo-empty">Nothing here yet — add your first task above.</div>' : groupsHtml}
     </div>`;
 }
+
+/* Contexts the todo add-form/list gets rendered in: the embedded card on
+   the Today tab (always visible, prefix "todayTab"), and the two panels
+   inside the dedicated To-Do tab (prefix "daily" / "long", toggled by
+   activeTodoTab). Every context needs unique element IDs since hidden
+   panels stay in the DOM rather than being removed. */
+const TODO_CONTEXTS = [
+  { listType: 'daily', idPrefix: 'todayTab' },
+  { listType: 'daily', idPrefix: 'daily' },
+  { listType: 'long', idPrefix: 'long' }
+];
 
 /* ---------------------------------------------------------------------
    Render
@@ -385,6 +403,19 @@ function render() {
           </div>
         </div>
       </div>
+
+      <div class="card">
+        <h2>Today's dial</h2>
+        <div class="dial-wrap">
+          ${renderDial(todaysTotals)}
+          <div class="dial-legend">
+            ${Object.keys(CATS).map((cat) => `
+              <div class="legend-row"><span class="cat-dot" style="background:${CATS[cat].hex}"></span>${CATS[cat].label}<span class="val">${fmtHrs(todaysTotals[cat])}</span></div>`).join('')}
+          </div>
+        </div>
+      </div>
+
+      ${renderTodoList('daily', 'todayTab', true, "Today's tasks")}
     </div>
 
     <div class="tab-panel ${activeTab === 'history' ? 'active' : ''}" data-panel="history">
@@ -443,8 +474,8 @@ function render() {
         <button class="tab-btn ${activeTodoTab === 'long' ? 'active' : ''}" data-todotab="long">Backlog</button>
       </div>
 
-      ${renderTodoList('daily')}
-      ${renderTodoList('long')}
+      ${renderTodoList('daily', 'daily', activeTodoTab === 'daily')}
+      ${renderTodoList('long', 'long', activeTodoTab === 'long')}
     </div>
   `;
 
@@ -476,13 +507,11 @@ function attachHandlers() {
     btn.onclick = () => { activeTodoTab = btn.dataset.todotab; render(); };
   });
 
-  ['daily', 'long'].forEach((listType) => {
-    const addBtnId = listType === 'daily' ? 'dailyAddBtn' : 'longAddBtn';
-    const inputId = listType === 'daily' ? 'dailyTodoInput' : 'longTodoInput';
-    const addBtn = document.getElementById(addBtnId);
-    const input = document.getElementById(inputId);
-    if (addBtn) addBtn.onclick = () => onAddTodo(listType);
-    if (input) input.onkeydown = (e) => { if (e.key === 'Enter') onAddTodo(listType); };
+  TODO_CONTEXTS.forEach(({ listType, idPrefix }) => {
+    const addBtn = document.getElementById(`${idPrefix}AddBtn`);
+    const input = document.getElementById(`${idPrefix}TodoInput`);
+    if (addBtn) addBtn.onclick = () => onAddTodo(listType, idPrefix);
+    if (input) input.onkeydown = (e) => { if (e.key === 'Enter') onAddTodo(listType, idPrefix); };
   });
 
   document.querySelectorAll('.todo-check').forEach((el) => { el.onclick = () => toggleTodo(el.dataset.id); });
@@ -539,11 +568,9 @@ async function onSaveGoal() {
   await dbPut('goals', entry);
   render();
 }
-async function onAddTodo(listType) {
-  const inputId = listType === 'daily' ? 'dailyTodoInput' : 'longTodoInput';
-  const selectId = listType === 'daily' ? 'dailyCategorySelect' : 'longCategorySelect';
-  const input = document.getElementById(inputId);
-  const select = document.getElementById(selectId);
+async function onAddTodo(listType, idPrefix) {
+  const input = document.getElementById(`${idPrefix}TodoInput`);
+  const select = document.getElementById(`${idPrefix}CategorySelect`);
   const text = input.value.trim();
   if (!text) return;
   const category = select.value || null;
@@ -558,7 +585,7 @@ async function onAddTodo(listType) {
   todos.push(todo);
   await dbPut('todos', todo);
   render();
-  const fresh = document.getElementById(inputId);
+  const fresh = document.getElementById(`${idPrefix}TodoInput`);
   if (fresh) fresh.focus();
 }
 async function toggleTodo(id) {

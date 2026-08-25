@@ -9,6 +9,7 @@
   --explore:#5fb3a3;
   --think:#a594d1;
   --build:#c1585f;
+  --write:#5b8ec9;
   --track:#2c3646;
   --good:#7fbf8f;
 }
@@ -84,10 +85,12 @@ body{
 .cat-btn[data-cat="explore"] .cat-dot{ background:var(--explore); }
 .cat-btn[data-cat="think"] .cat-dot{ background:var(--think); }
 .cat-btn[data-cat="build"] .cat-dot{ background:var(--build); }
+.cat-btn[data-cat="write"] .cat-dot{ background:var(--write); }
 .cat-btn.active[data-cat="study"]{ border-color:var(--study); box-shadow:0 0 0 1px var(--study) inset; }
 .cat-btn.active[data-cat="explore"]{ border-color:var(--explore); box-shadow:0 0 0 1px var(--explore) inset; }
 .cat-btn.active[data-cat="think"]{ border-color:var(--think); box-shadow:0 0 0 1px var(--think) inset; }
 .cat-btn.active[data-cat="build"]{ border-color:var(--build); box-shadow:0 0 0 1px var(--build) inset; }
+.cat-btn.active[data-cat="write"]{ border-color:var(--write); box-shadow:0 0 0 1px var(--write) inset; }
 .cat-btn:disabled{ opacity:0.4; cursor:not-allowed; }
 
 .timer-display{ text-align:center; margin:16px 0; }
