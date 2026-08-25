@@ -8,6 +8,7 @@
   --study:#e0a452;
   --explore:#5fb3a3;
   --think:#a594d1;
+  --build:#c1585f;
   --track:#2c3646;
   --good:#7fbf8f;
 }
@@ -72,19 +73,21 @@ body{
 }
 
 /* Timer */
-.cat-buttons{ display:flex; gap:8px; margin-bottom:16px; }
+.cat-buttons{ display:flex; gap:6px; margin-bottom:16px; flex-wrap:wrap; }
 .cat-btn{
-  flex:1; padding:10px 8px; border-radius:8px; border:1px solid var(--line);
-  background:var(--surface-2); color:var(--text); font-size:13px; font-weight:600;
+  flex:1; min-width:70px; padding:10px 6px; border-radius:8px; border:1px solid var(--line);
+  background:var(--surface-2); color:var(--text); font-size:12px; font-weight:600;
   cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:6px;
 }
 .cat-dot{ width:9px; height:9px; border-radius:50%; }
 .cat-btn[data-cat="study"] .cat-dot{ background:var(--study); }
 .cat-btn[data-cat="explore"] .cat-dot{ background:var(--explore); }
 .cat-btn[data-cat="think"] .cat-dot{ background:var(--think); }
+.cat-btn[data-cat="build"] .cat-dot{ background:var(--build); }
 .cat-btn.active[data-cat="study"]{ border-color:var(--study); box-shadow:0 0 0 1px var(--study) inset; }
 .cat-btn.active[data-cat="explore"]{ border-color:var(--explore); box-shadow:0 0 0 1px var(--explore) inset; }
 .cat-btn.active[data-cat="think"]{ border-color:var(--think); box-shadow:0 0 0 1px var(--think) inset; }
+.cat-btn.active[data-cat="build"]{ border-color:var(--build); box-shadow:0 0 0 1px var(--build) inset; }
 .cat-btn:disabled{ opacity:0.4; cursor:not-allowed; }
 
 .timer-display{ text-align:center; margin:16px 0; }
@@ -113,9 +116,18 @@ body{
 .legend-row .val{ margin-left:auto; color:var(--muted); padding-left:14px; }
 
 /* Todo */
-.todo-input-row{ display:flex; gap:8px; margin-bottom:14px; }
-.todo-input-row input{ flex:1; background:var(--surface-2); border:1px solid var(--line); color:var(--text); border-radius:8px; padding:10px 12px; font-size:13px; }
-.todo-list{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px; max-height:320px; overflow-y:auto; }
+.todo-subtabs{ display:flex; gap:6px; margin-bottom:14px; }
+.todo-hint{ font-size:12px; color:var(--muted); font-family:'IBM Plex Mono',monospace; margin:0 0 12px; }
+.todo-input-row{ display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
+.todo-input-row input[type=text]{ flex:1; min-width:120px; background:var(--surface-2); border:1px solid var(--line); color:var(--text); border-radius:8px; padding:10px 12px; font-size:13px; }
+.todo-input-row select{ background:var(--surface-2); border:1px solid var(--line); color:var(--text); border-radius:8px; padding:10px 8px; font-size:12.5px; }
+.todo-group{ margin-bottom:16px; }
+.todo-group:last-child{ margin-bottom:0; }
+.todo-group-label{
+  display:flex; align-items:center; gap:7px; font-family:'IBM Plex Mono',monospace;
+  font-size:11px; text-transform:uppercase; letter-spacing:0.6px; color:var(--muted); margin-bottom:8px;
+}
+.todo-list{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px; }
 .todo-item{ display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:7px; background:var(--surface-2); border:1px solid var(--line); }
 .todo-item.done{ opacity:0.45; }
 .todo-item.done .todo-text{ text-decoration:line-through; }

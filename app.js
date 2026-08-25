@@ -79,8 +79,10 @@ async function dbClearAndFill(store, items) {
 const CATS = {
   study:   { label: "Study",   hex: "#e0a452" },
   explore: { label: "Explore", hex: "#5fb3a3" },
-  think:   { label: "Think",   hex: "#a594d1" }
+  think:   { label: "Think",   hex: "#a594d1" },
+  build:   { label: "Build",   hex: "#c1585f" }
 };
+const CAT_KEYS = Object.keys(CATS);
 
 const QUOTES = [
   "Progress, not permanence — every hour logged is an hour understood.",
@@ -97,6 +99,24 @@ let sessions = [];
 let todos = [];
 let goals = [];
 let activeTab = 'today';
+let activeTodoTab = 'daily'; // 'daily' | 'long'
+
+/* Groups a list of todos by category (in CAT_KEYS order, uncategorized
+   items last under "General") for rendering as sections. */
+function groupTodosByCategory(list) {
+  const groups = {};
+  CAT_KEYS.forEach((k) => { groups[k] = []; });
+  groups.general = [];
+  list.forEach((t) => {
+    const key = CAT_KEYS.includes(t.category) ? t.category : 'general';
+    groups[key].push(t);
+  });
+  return groups;
+}
+function categoryDotHtml(catKey) {
+  const hex = CATS[catKey] ? CATS[catKey].hex : '#8993a3';
+  return `<span class="cat-dot" style="background:${hex}"></span>`;
+}
 
 let timer = { running: false, category: null, startedAt: null };
 let tickInterval = null;
@@ -129,7 +149,8 @@ function fmtHrs(min) {
 }
 
 function totalsFor(sessionList) {
-  const t = { study: 0, explore: 0, think: 0 };
+  const t = {};
+  CAT_KEYS.forEach((k) => { t[k] = 0; });
   sessionList.forEach((s) => { if (t[s.category] !== undefined) t[s.category] += s.minutes; });
   return t;
 }
@@ -189,7 +210,7 @@ function renderDial(totals) {
   const scaleMin = 8 * 60;
   const cx = 100, cy = 100, r = 78, sw = 22;
   let deg = 0, arcs = '';
-  ['study', 'explore', 'think'].forEach((cat) => {
+  CAT_KEYS.forEach((cat) => {
     const min = totals[cat];
     const sweep = Math.min(min / scaleMin, 1) * 360;
     if (sweep > 0.5) {
@@ -197,7 +218,7 @@ function renderDial(totals) {
     }
     deg += sweep;
   });
-  const totalMin = totals.study + totals.explore + totals.think;
+  const totalMin = CAT_KEYS.reduce((sum, k) => sum + totals[k], 0);
   return `<svg viewBox="0 0 200 200" width="140" height="140">
     <circle cx="${cx}" cy="${cy}" r="${r}" stroke="var(--track)" stroke-width="${sw}" fill="none"/>
     ${arcs}
@@ -212,8 +233,53 @@ function last7Days() {
 }
 function escapeHtml(str) {
   const d = document.createElement('div');
-  d.innerText = str;
+  d.textContent = str;
   return d.innerHTML;
+}
+
+function renderTodoList(listType) {
+  const today = todayStr();
+  const list = todos.filter((t) => listType === 'daily' ? t.linkedDate === today : !t.linkedDate);
+  const groups = groupTodosByCategory(list);
+  const order = [...CAT_KEYS, 'general'];
+  const inputId = listType === 'daily' ? 'dailyTodoInput' : 'longTodoInput';
+  const selectId = listType === 'daily' ? 'dailyCategorySelect' : 'longCategorySelect';
+  const addBtnId = listType === 'daily' ? 'dailyAddBtn' : 'longAddBtn';
+  const hint = listType === 'daily'
+    ? "Today's list — tasks you add here belong to today only."
+    : "Backlog — tasks here stick around until you finish or delete them.";
+
+  const groupsHtml = order.map((key) => {
+    const items = groups[key];
+    if (items.length === 0) return '';
+    const label = key === 'general' ? 'General' : CATS[key].label;
+    return `
+      <div class="todo-group">
+        <div class="todo-group-label">${categoryDotHtml(key)}${label}</div>
+        <ul class="todo-list">
+          ${items.slice().sort((a, b) => a.isDone - b.isDone).map((t) => `
+            <li class="todo-item ${t.isDone ? 'done' : ''}">
+              <span class="todo-check ${t.isDone ? 'checked' : ''}" data-id="${t.id}">${t.isDone ? '✓' : ''}</span>
+              <span class="todo-text">${escapeHtml(t.text)}</span>
+              <button class="todo-del" data-id="${t.id}">✕</button>
+            </li>`).join('')}
+        </ul>
+      </div>`;
+  }).join('');
+
+  return `
+    <div class="card" data-todopanel="${listType}" style="${activeTodoTab === listType ? '' : 'display:none;'}">
+      <p class="todo-hint">${hint}</p>
+      <div class="todo-input-row">
+        <input type="text" id="${inputId}" placeholder="What's next?">
+        <select id="${selectId}">
+          <option value="">General</option>
+          ${CAT_KEYS.map((k) => `<option value="${k}">${CATS[k].label}</option>`).join('')}
+        </select>
+        <button class="btn primary" id="${addBtnId}">Add</button>
+      </div>
+      ${list.length === 0 ? '<div class="todo-empty">Nothing here yet — add your first task above.</div>' : groupsHtml}
+    </div>`;
 }
 
 /* ---------------------------------------------------------------------
@@ -303,9 +369,7 @@ function render() {
           <label>Add time manually:</label>
           <input type="number" id="manualMin" min="1" placeholder="min">
           <select id="manualCat">
-            <option value="study">Study</option>
-            <option value="explore">Explore</option>
-            <option value="think" selected>Think</option>
+            ${CAT_KEYS.map((k) => `<option value="${k}" ${k === 'think' ? 'selected' : ''}>${CATS[k].label}</option>`).join('')}
           </select>
           <button class="btn" id="manualAddBtn">Add</button>
         </div>
@@ -329,15 +393,13 @@ function render() {
         <div class="week-rows">
           ${weekDays.map((d) => {
             const totals = totalsFor(sessionsOn(d));
-            const total = totals.study + totals.explore + totals.think;
+            const total = CAT_KEYS.reduce((sum, k) => sum + totals[k], 0);
             const scaleMin = 8 * 60;
             const pctOf = (cat) => Math.min(totals[cat] / scaleMin, 1) * 100;
             return `<div class="week-row">
               <span class="week-day">${dayLabels[d.getDay()]} ${d.getDate()}${todayStr(d) === todayStr() ? ' •' : ''}</span>
               <div class="week-bar">
-                <div class="week-bar-seg" style="width:${pctOf('study')}%;background:${CATS.study.hex}"></div>
-                <div class="week-bar-seg" style="width:${pctOf('explore')}%;background:${CATS.explore.hex}"></div>
-                <div class="week-bar-seg" style="width:${pctOf('think')}%;background:${CATS.think.hex}"></div>
+                ${CAT_KEYS.map((cat) => `<div class="week-bar-seg" style="width:${pctOf(cat)}%;background:${CATS[cat].hex}"></div>`).join('')}
               </div>
               <span class="week-total">${fmtHrs(total)}</span>
             </div>`;
@@ -376,22 +438,13 @@ function render() {
     </div>
 
     <div class="tab-panel ${activeTab === 'todo' ? 'active' : ''}" data-panel="todo">
-      <div class="card">
-        <h2>To-do</h2>
-        <div class="todo-input-row">
-          <input type="text" id="todoInput" placeholder="What's next in the queue?">
-          <button class="btn primary" id="addTodoBtn">Add</button>
-        </div>
-        <ul class="todo-list">
-          ${todos.length === 0 ? '<div class="todo-empty">No tasks yet — add your first one above.</div>' :
-            todos.slice().sort((a, b) => a.isDone - b.isDone).map((t) => `
-            <li class="todo-item ${t.isDone ? 'done' : ''}">
-              <span class="todo-check ${t.isDone ? 'checked' : ''}" data-id="${t.id}">${t.isDone ? '✓' : ''}</span>
-              <span class="todo-text">${escapeHtml(t.text)}</span>
-              <button class="todo-del" data-id="${t.id}">✕</button>
-            </li>`).join('')}
-        </ul>
+      <div class="todo-subtabs">
+        <button class="tab-btn ${activeTodoTab === 'daily' ? 'active' : ''}" data-todotab="daily">Today</button>
+        <button class="tab-btn ${activeTodoTab === 'long' ? 'active' : ''}" data-todotab="long">Backlog</button>
       </div>
+
+      ${renderTodoList('daily')}
+      ${renderTodoList('long')}
     </div>
   `;
 
@@ -419,10 +472,18 @@ function attachHandlers() {
   const saveGoalBtn = document.getElementById('saveGoalBtn');
   if (saveGoalBtn) saveGoalBtn.onclick = onSaveGoal;
 
-  const addTodoBtn = document.getElementById('addTodoBtn');
-  if (addTodoBtn) addTodoBtn.onclick = onAddTodo;
-  const todoInput = document.getElementById('todoInput');
-  if (todoInput) todoInput.onkeydown = (e) => { if (e.key === 'Enter') onAddTodo(); };
+  document.querySelectorAll('[data-todotab]').forEach((btn) => {
+    btn.onclick = () => { activeTodoTab = btn.dataset.todotab; render(); };
+  });
+
+  ['daily', 'long'].forEach((listType) => {
+    const addBtnId = listType === 'daily' ? 'dailyAddBtn' : 'longAddBtn';
+    const inputId = listType === 'daily' ? 'dailyTodoInput' : 'longTodoInput';
+    const addBtn = document.getElementById(addBtnId);
+    const input = document.getElementById(inputId);
+    if (addBtn) addBtn.onclick = () => onAddTodo(listType);
+    if (input) input.onkeydown = (e) => { if (e.key === 'Enter') onAddTodo(listType); };
+  });
 
   document.querySelectorAll('.todo-check').forEach((el) => { el.onclick = () => toggleTodo(el.dataset.id); });
   document.querySelectorAll('.todo-del').forEach((el) => { el.onclick = () => deleteTodo(el.dataset.id); });
@@ -478,15 +539,26 @@ async function onSaveGoal() {
   await dbPut('goals', entry);
   render();
 }
-async function onAddTodo() {
-  const input = document.getElementById('todoInput');
+async function onAddTodo(listType) {
+  const inputId = listType === 'daily' ? 'dailyTodoInput' : 'longTodoInput';
+  const selectId = listType === 'daily' ? 'dailyCategorySelect' : 'longCategorySelect';
+  const input = document.getElementById(inputId);
+  const select = document.getElementById(selectId);
   const text = input.value.trim();
   if (!text) return;
-  const todo = { id: uid(), text, isDone: false, createdAt: Date.now() };
+  const category = select.value || null;
+  const todo = {
+    id: uid(),
+    text,
+    isDone: false,
+    category,
+    linkedDate: listType === 'daily' ? todayStr() : null,
+    createdAt: Date.now()
+  };
   todos.push(todo);
   await dbPut('todos', todo);
   render();
-  const fresh = document.getElementById('todoInput');
+  const fresh = document.getElementById(inputId);
   if (fresh) fresh.focus();
 }
 async function toggleTodo(id) {
